@@ -20,22 +20,26 @@
 #
 ##############################################################################
 
-from openerp import pooler, SUPERUSER_ID as uid
+from openerp import SUPERUSER_ID
+from openerp.modules.registry import RegistryManager
 from openerp.openupgrade import openupgrade, openupgrade_80
 
 
 @openupgrade.migrate()
 def migrate(cr, version):
-    pool = pooler.get_pool(cr.dbname)
-
+    pool = RegistryManager.get(cr.dbname)
+    # Old values:
+    # ('1', 'Highest'), ('2', 'High'), ('3', 'Normal'), ('4', 'Low'),
+    # ('5', 'Lowest')
+    # New ones:
+    # ('0', 'Low'), ('1', 'Normal'), ('2', 'High')
     openupgrade.map_values(
         cr,
         openupgrade.get_legacy_name('priority'),
         'priority',
         [('4', '0'), ('3', '0'), ('2', '1'), ('1', '2'), ('0', '2')],
         table='project_issue', write='sql')
-
-    openupgrade_80.set_message_last_post(cr, uid, pool, ['project.issue'])
-
+    openupgrade_80.set_message_last_post(cr, SUPERUSER_ID, pool,
+                                         ['project.issue'])
     openupgrade.load_data(
         cr, 'project_issue', 'migrations/8.0.1.0/noupdate_changes.xml')
