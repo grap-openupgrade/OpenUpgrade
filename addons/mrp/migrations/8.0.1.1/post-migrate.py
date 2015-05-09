@@ -126,6 +126,7 @@ def update_stock_moves(cr, pool):
             logger.warning("Production not found for Stock move %s (#%s)" % (
                 sm.name, sm.id))
 
+
 def update_stock_picking_name(cr, pool):
     picking_obj = pool['stock.picking']
     picking_ids = picking_obj.search(
