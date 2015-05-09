@@ -95,18 +95,36 @@ def fix_domains(cr, pool):
 
 def update_stock_moves(cr, pool):
     stock_move_obj = pool['stock.move']
-    sm_ids = stock_move_obj.search(cr, uid, [])
     mrp_production_obj = pool['mrp.production']
     location_obj = pool['stock.location']
-    location_id = location_obj.search(cr, uid, [('name', '=', 'Production')])
+
+    # TODO: improve production location search, using other criteria than name
+    location_ids = location_obj.search(cr, uid, [('name', '=', 'Production')])
+    if not location_ids:
+        # This function is useless
+        return True
+
+    # TODO: make this script operationnel in multicompany context
+    location_id = location_ids[0]
+    sm_ids = stock_move_obj.search(cr, uid, [
+        ('location_dest_id', '=', location_id)])
+
+    logger.info("Setting production id for %d stock moves." % (len(sm_ids)))
+
     for sm in stock_move_obj.browse(cr, uid, sm_ids):
-        if 'MO' in sm.name and sm.location_dest_id.id == location_id[0]:
-            prod_id = mrp_production_obj.search(cr, uid, [('name', '=', sm.name)])
-            sql = """UPDATE stock_move SET raw_material_production_id = %s WHERE id = % s""" % (prod_id[0], sm.id)
+        prod_id = mrp_production_obj.search(cr, uid, [
+            '|', ('name', '=', sm.name),
+            ('name', '=', sm.name.replace('PROD:', ''))])
+        if prod_id:
+            sql = """
+                UPDATE stock_move
+                SET raw_material_production_id = %s
+                WHERE id = % s""" % (prod_id[0], sm.id)
             cr.execute(sql)
             cr.commit()
-#             sm.write(cr, uid, {'raw_material_production_id': prod_id[0]})
-
+        else:
+            logger.warning("Production not found for Stock move %s (#%s)" % (
+                sm.name, sm.id))
 
 def update_stock_picking_name(cr, pool):
     picking_obj = pool['stock.picking']
